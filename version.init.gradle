@@ -1,0 +1,13 @@
+allprojects {
+    pluginManager.withPlugin('com.android.application') {
+        def code = findProperty('projectVersionCode')
+        def name = findProperty('projectVersionName')
+        def components = extensions.getByName('androidComponents')
+        components.onVariants(components.selector().all()) { variant ->
+            variant.outputs.each { output ->
+                if (code) output.versionCode.set(code.toString().toInteger())
+                if (name) output.versionName.set(name.toString())
+            }
+        }
+    }
+}

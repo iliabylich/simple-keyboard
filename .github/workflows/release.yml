@@ -1,0 +1,62 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Build number (0-999)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      FDROID_KEYSTORE_PASSWORD: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Decode keystores
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > "$RUNNER_TEMP/android.jks"
+          echo "${{ secrets.FDROID_KEYSTORE }}" | base64 -d > "$RUNNER_TEMP/fdroid.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/android.jks" >> "$GITHUB_ENV"
+          echo "FDROID_KEYSTORE_PATH=$RUNNER_TEMP/fdroid.jks" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          install: true
+          cache: false
+
+      - run: mise run sdk:setup
+
+      - run: mise run build:release
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+
+      - run: mise run fdroid:update
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: fdroid
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -45,3 +45,12 @@ captures/
 *.jks
 
 .idea
+
+# mpclipboard fork
+/.local/
+/app/libs/
+.env
+fdroid/metadata
+fdroid/repo
+fdroid/srclibs
+fdroid/tmp

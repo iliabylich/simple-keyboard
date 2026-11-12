@@ -268,7 +268,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         final IntentFilter filter = new IntentFilter();
         filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
         registerReceiver(mRingerModeChangeReceiver, filter);
+        mMPClipboard = new MPClipboardBridge(this);
     }
+
+    private MPClipboardBridge mMPClipboard;
 
     private void loadSettings() {
         mLocale = mRichImm.getCurrentSubtype().getLocaleObject();
@@ -281,6 +284,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onDestroy() {
+        mMPClipboard.close();
         mSettings.onDestroy();
         unregisterReceiver(mRingerModeChangeReceiver);
         super.onDestroy();
