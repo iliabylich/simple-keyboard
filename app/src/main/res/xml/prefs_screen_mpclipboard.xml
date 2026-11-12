@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="mpclipboard">
+    <EditTextPreference
+        android:key="mpclipboard_url"
+        android:title="URL"
+        android:inputType="textUri"
+        android:singleLine="true" />
+    <EditTextPreference
+        android:key="mpclipboard_token"
+        android:title="Token"
+        android:inputType="textPassword"
+        android:singleLine="true" />
+    <EditTextPreference
+        android:key="mpclipboard_id"
+        android:title="ID"
+        android:singleLine="true" />
+</PreferenceScreen>

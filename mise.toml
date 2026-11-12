@@ -1,0 +1,91 @@
+[task_config]
+shell = "bash -euo pipefail -c"
+
+[tools]
+java = "temurin-21"
+gradle = "9.6.0"
+android-sdk = "23.0"
+uv = "latest"
+"pipx:fdroidserver" = "2.4.5"
+
+[env]
+GRADLE_USER_HOME = "{{config_root}}/.local/gradle"
+UV_PYTHON_PREFERENCE = "only-managed"
+ANDROID_KEY_ALIAS = "release"
+FDROID_KEY_ALIAS = "release"
+MPCLIPBOARD_VERSION = "v6.0.3"
+_.file = { path = ".env", redacted = true }
+
+[tasks."sdk:setup"]
+run = 'yes | sdkmanager "build-tools;36.0.0" "platforms;android-37.0" > /dev/null || true'
+
+[tasks."mpclipboard:fetch"]
+usage = 'arg "[flavor]" { choices "debug" "release" }'
+run = '''
+case "${usage_flavor}" in
+  debug)   pattern="*_arm64_debug.aar" ;;
+  release) pattern="*_arm64.aar" ;;
+esac
+mkdir -p app/libs
+gh release download "$MPCLIPBOARD_VERSION" \
+  --repo iliabylich/mpclipboard \
+  --pattern "$pattern" \
+  --output app/libs/mpclipboard.aar \
+  --clobber
+ls -l app/libs/mpclipboard.aar
+'''
+
+[tasks.build]
+run = "gradle --no-daemon :app:assembleDebug"
+
+[tasks."build:release"]
+usage = 'arg "<build_number>" env="BUILD_NUMBER"'
+run = '''
+build_number="$usage_build_number"
+if [[ ! "$build_number" =~ ^(0|[1-9][0-9]{0,2})$ ]]; then
+  echo "build number must be an integer from 0 to 999, got '$build_number'" >&2
+  exit 1
+fi
+
+upstream_code="$(sed -n 's/^ *versionCode \([0-9]*\) *$/\1/p' app/build.gradle)"
+upstream_name="$(sed -n 's/^ *versionName "\(.*\)" *$/\1/p' app/build.gradle)"
+: "${upstream_code:?}" "${upstream_name:?}"
+
+mise run mpclipboard:fetch release
+
+gradle --no-daemon --stacktrace --init-script version.init.gradle :app:assembleRelease \
+  -PprojectVersionCode="$((upstream_code * 1000 + build_number))" \
+  -PprojectVersionName="$upstream_name-$build_number" \
+  -Pandroid.injected.signing.store.file="$ANDROID_KEYSTORE_PATH" \
+  -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+  -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+  -Pandroid.injected.signing.key.password="$ANDROID_KEYSTORE_PASSWORD"
+
+ls -l app/build/outputs/apk/release/app-release.apk
+'''
+
+[tasks."fdroid:update"]
+run = '''
+cd fdroid
+chmod 600 config.yml
+
+rm -rf metadata repo srclibs tmp
+mkdir -p repo
+
+cp ../app/build/outputs/apk/release/app-release.apk repo/simple-keyboard-mpclipboard.apk
+
+fdroid update --verbose --create-metadata
+'''
+
+[tasks.install]
+run = "adb install -r app/build/outputs/apk/debug/app-debug.apk"
+
+[tasks.logs]
+run = '''
+uid="$(adb shell pm list packages -U dev.ibylich.simpleKeyboard | grep -o 'uid:[0-9]*' | head -1 | cut -d: -f2)"
+[ -n "$uid" ] || { echo "app is not installed" >&2; exit 1; }
+exec adb logcat -v color --uid="$uid" | grep -E "RUST|MPClipboardBridge"
+'''
+
+[tasks.dev]
+run = [{ task = "build" }, { task = "install" }, { task = "logs" }]

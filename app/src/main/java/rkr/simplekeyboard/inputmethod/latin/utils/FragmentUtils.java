@@ -34,6 +34,7 @@ public class FragmentUtils {
         sLatinImeFragments.add(PreferencesSettingsFragment.class.getName());
         sLatinImeFragments.add(KeyPressSettingsFragment.class.getName());
         sLatinImeFragments.add(AppearanceSettingsFragment.class.getName());
+        sLatinImeFragments.add(rkr.simplekeyboard.inputmethod.latin.settings.MPClipboardSettingsFragment.class.getName());
         sLatinImeFragments.add(ThemeSettingsFragment.class.getName());
         sLatinImeFragments.add(SettingsFragment.class.getName());
         sLatinImeFragments.add(LanguagesSettingsFragment.class.getName());
